@@ -17,6 +17,7 @@
 */
 
 import { classNameFactory } from "@api/Styles";
+import * as DataStore from "@api/DataStore";
 
 import { React } from "@webpack/common";
 import { waitFor } from "@webpack";
@@ -28,6 +29,44 @@ export const cl = classNameFactory("vc-more-stickers-");
 export const clPicker = (className: string, ...args: any[]) => cl("picker-" + className, ...args);
 
 const CORS_PROXY = "https://corsproxy.io?";
+
+export let cachedRegion: string = "en";
+export async function initializeRegionCache() {
+    cachedRegion = await DataStore.get('region') || 'en';
+}
+initializeRegionCache();
+export function localization(text: string): string {
+    const translations: { [key: string]: { [key: string]: string } } = {
+        'ja': {
+            'Search stickers': 'スタンプを検索',
+            'Recently Used': '最近使ったスタンプ',
+            'Add Sticker Pack from URL': 'URLからスタンプを追加',
+            'Add from URL': 'URLから追加',
+            'Add from HTML': 'HTMLから追加',
+            'Add from File': 'ファイルから追加',
+            'Currently LINE stickers supported only.': '現在はLINEスタンプのみ対応しております。',
+            'Telegram stickers support is planned, but due to the lack of a public API, it is most likely to be provided by sticker pack files instead of adding by URL.': 'Telegramステッカーのサポートが計画されていますが、パブリックAPIがないため、URLで追加するのではなく、ファイルインポートによる追加になる可能性が高いです。',
+            'Insert': '追加',
+            'Sticker Pack URL': 'スタンプURL',
+            'Add Sticker Pack from HTML': 'HTMLからスタンプを追加',
+            'Add Sticker Pack from File': 'ファイルからスタンプを追加',
+            'When encountering errors while adding a sticker pack, you can try to add it using the HTML source code of the sticker pack page.': 'スタンプの追加中にエラーが発生した場合は、スタンプページのHTMLソースコードを使用してスタンプの追加を試みることができます。',
+            'This applies to stickers which are region locked / OS locked / etc.': 'これは、地域ロック/OSロックなどのスタンプに適用されます。',
+            'The region LINE recognized may vary from the region you are in due to the CORS proxy we\'re using.': 'LINEが認識する地域は、使用しているCORSプロキシにより、お住まいの地域とは異なる場合があります。',
+            'Stickers Management': 'スタンプ管理',
+            'No Resize': 'リサイズなし',
+            'Language': '言語',
+            'Insert from HTML': 'HTMLから挿入',
+            'Open Sticker Pack File': 'ファイルをインポート',
+            'Paste HTML here': 'ここにHTMLを貼り付けてください',
+            'Stickers+': 'スタンプ+',
+            'Not set': "未設定",
+            'from ': 'より',
+        },
+    };
+    return translations[cachedRegion]?.[text] || text;
+}
+
 
 function corsUrl(url: string | URL) {
     return CORS_PROXY + encodeURIComponent(url.toString());

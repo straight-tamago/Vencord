@@ -22,7 +22,7 @@ import { React, TextInput } from "@webpack/common";
 import { Header } from "./header";
 import { IconContainer } from "./iconContainer";
 import { CancelIcon, SearchIcon } from "./icons";
-import { clPicker } from "../utils";
+import { clPicker, localization } from "../utils";
 
 export interface PickerHeaderProps {
     onQueryChange: (query: string) => void;
@@ -47,7 +47,7 @@ export const PickerHeader = ({ onQueryChange }: PickerHeaderProps) => {
                         <TextInput
                             style={{ height: "30px" }}
 
-                            placeholder="Search stickers"
+                            placeholder={localization("Search stickers")}
                             autoFocus={true}
                             value={query}
 

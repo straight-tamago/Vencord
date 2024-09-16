@@ -21,6 +21,8 @@ import { ChannelStore } from "@webpack/common";
 import { FFmpegState, Sticker } from "./types";
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import { corsFetch } from "./utils";
+import * as DataStore from "@api/DataStore";
 
 
 const MessageUpload = findByPropsLazy("instantBatchUpload");
@@ -33,7 +35,56 @@ const promptToUploadParent = findByPropsLazy("promptToUpload");
 
 export const ffmpeg = new FFmpeg();
 
-async function resizeImage(url: string): Promise<Blob> {
+async function resizeImage(url: string) {
+    const originalImage = new Image();
+    originalImage.crossOrigin = "anonymous"; // If the image is hosted on a different domain, enable CORS
+
+    const loadImage = new Promise((resolve, reject) => {
+        originalImage.onload = resolve;
+        originalImage.onerror = reject;
+        originalImage.src = url;
+    });
+
+    await loadImage;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not get canvas context");
+
+    // Determine the target size of the processed image (160x160)
+    const targetSize = 160;
+
+    // Calculate the scale factor to resize the image
+    const scaleFactor = Math.min(targetSize / originalImage.width, targetSize / originalImage.height);
+
+    // Calculate the dimensions for resizing the image while maintaining aspect ratio
+    const resizedWidth = originalImage.width * scaleFactor;
+    const resizedHeight = originalImage.height * scaleFactor;
+
+    // Set the canvas size to the target dimensions
+    canvas.width = targetSize;
+    canvas.height = targetSize;
+
+    // Draw the resized image onto the canvas
+    ctx.drawImage(originalImage, 0, 0, resizedWidth, resizedHeight);
+
+    // Get the canvas image data
+    const imageData = ctx.getImageData(0, 0, targetSize, targetSize);
+    const { data } = imageData;
+
+    // Apply any additional image processing or filters here if desired
+
+    // Convert the image data to a Blob
+    const blob: Blob | null = await new Promise(resolve => {
+        canvas.toBlob(resolve, "image/png");
+    });
+    if (!blob) throw new Error("Could not convert canvas to blob");
+
+    // return the object URL representing the Blob
+    return blob;
+}
+
+async function noResizeImage(url: string): Promise<Blob> {
     const originalImage = new Image();
     originalImage.crossOrigin = "anonymous"; // If the image is hosted on a different domain, enable CORS
 
@@ -67,7 +118,6 @@ async function resizeImage(url: string): Promise<Blob> {
     return blob;
 }
 
-
 async function toGIF(url: string, ffmpeg: FFmpeg): Promise<File> {
     const filename = (new URL(url)).pathname.split("/").pop() ?? "image.png";
     await ffmpeg.writeFile(filename, await fetchFile(url));
@@ -90,6 +140,79 @@ async function toGIF(url: string, ffmpeg: FFmpeg): Promise<File> {
         throw new Error("Could not read file");
     }
     return new File([data.buffer], outputFilename, { type: 'image/gif' });
+}
+
+
+async function getOverlayTextImage(overlayTextImageUrl: string, overlayText: string): Promise<string> {
+    const regex = /product\/(\d+)\/sticker\/(\d+)/;
+    const match = overlayTextImageUrl.match(regex);
+
+    if (match) {
+        const productId = match[1];
+        const stickerId = match[2];
+        console.log(`Product ID: ${productId}`);
+        console.log(`Sticker ID: ${stickerId}`);
+
+        const baseUrl = `https://store.line.me/overlay/sticker/${productId}/${stickerId}/iPhone/sticker.png`;
+        const url = `${baseUrl}?text=${encodeURIComponent(overlayText)}`;
+        const refererHeader = `https://store.line.me/stickershop/product/${productId}/ja`;
+
+        try {
+            const response = await corsFetch(url, {
+                headers: {
+                    'Referer': refererHeader
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const blob = await response.blob();
+            const imageUrl = URL.createObjectURL(blob);
+            return imageUrl;
+        } catch (error) {
+            console.error('Error fetching or saving image:', error);
+            throw error;
+        }
+    } else {
+        console.log("No matches found.");
+    }
+
+    return overlayTextImageUrl;
+}
+
+async function compositeImage(url: string, overlaryUrl: string, ffmpeg: FFmpeg): Promise<File> {
+    const filename = "image.png";
+    await ffmpeg.writeFile(filename, await fetchFile(url));
+
+    const overlayFilename = "overlay.png";
+    await ffmpeg.writeFile(overlayFilename, await fetchFile(overlaryUrl));
+
+    const outputFilename = "output." + filename?.split(".").pop()?.toLowerCase();
+    await ffmpeg.exec(["-i", filename, "-i", overlayFilename,
+        "-filter_complex", `[0][1]overlay=0:0:format=auto,format=rgba`,
+        "-y", outputFilename]);
+
+    const data = await ffmpeg.readFile(outputFilename);
+    await ffmpeg.deleteFile(filename);
+    await ffmpeg.deleteFile(overlayFilename);
+    await ffmpeg.deleteFile(outputFilename);
+    if (typeof data === "string") {
+        throw new Error("Could not read file");
+    }
+
+    let mimeType = "image/png";
+    switch (filename?.split(".").pop()?.toLowerCase()) {
+        case "jpg":
+        case "jpeg":
+            mimeType = "image/jpeg";
+            break;
+        case "webp":
+            mimeType = "image/webp";
+            break;
+    }
+    return new File([data.buffer], outputFilename, { type: mimeType });
 }
 
 export async function sendSticker({
@@ -118,7 +241,7 @@ export async function sendSticker({
     if ((ctrlKey || !sendAsLink) && !shiftKey) {
         let file: File | null = null;
 
-        if (sticker?.isAnimated) {
+        if (sticker.animationImage !== undefined || sticker.popupImage !== undefined) {
             if (!ffmpegState) {
                 throw new Error("FFmpeg state is not provided");
             }
@@ -129,16 +252,38 @@ export async function sendSticker({
                 throw new Error("FFmpeg is not loaded");
             }
 
-            file = await toGIF(sticker.image, ffmpegState.ffmpeg);
-        }
-        else {
+            if (sticker.animationImage !== undefined) {
+                file = await toGIF(sticker.animationImage, ffmpegState.ffmpeg);
+            } else if (sticker.popupImage !== undefined) {
+                file = await toGIF(sticker.popupImage, ffmpegState.ffmpeg);
+            }
+        } else if (sticker.overlayTextImageUrl) {
+            if (!ffmpegState?.ffmpeg || !ffmpegState?.isLoaded) {
+                throw new Error("FFmpeg state is incomplete or not provided");
+            }
+
+            sticker.overlayText = await DataStore.get(sticker.id + "_text");
+            if (sticker.overlayText && sticker.overlayText != "") {
+                sticker.overlayTextImageUrl = await getOverlayTextImage(sticker.overlayTextImageUrl, sticker.overlayText || "");
+            }
+
+            const noResize = await DataStore.get('resizeSwitchState') || false;
+            if (!noResize) {
+                sticker.image = URL.createObjectURL(await resizeImage(sticker.image));
+                sticker.overlayTextImageUrl = URL.createObjectURL(await resizeImage(sticker.overlayTextImageUrl));
+            }
+
+            file = await compositeImage(sticker.image, sticker.overlayTextImageUrl, ffmpegState.ffmpeg);
+        } else {
             sticker.image = sticker.image.replace('android', 'iPhone');
             sticker.image = sticker.image.replace('sticker.png', 'sticker@2x.png');
 
             const response = await fetch(sticker.image, { cache: "force-cache" });
             // const blob = await response.blob();
             const orgImageUrl = URL.createObjectURL(await response.blob());
-            const processedImage = await resizeImage(orgImageUrl);
+
+            const noResize = await DataStore.get('resizeSwitchState') || false;
+            const processedImage = noResize ? await noResizeImage(orgImageUrl) : await resizeImage(orgImageUrl);
 
             const filename = sticker.filename ?? (new URL(sticker.image)).pathname.split("/").pop();
             let mimeType = "image/png";

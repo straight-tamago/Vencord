@@ -30,7 +30,7 @@ export function CategoryScroller(props: { children: React.ReactNode, categoryLen
                     </div>
                 ))
             }</div>
-            <div style={{ height: `${Math.round(41.75 * (props.categoryLength + 1))}px` }}></div>
+            {/* <div style={{ height: `${Math.round(41.75 * (props.categoryLength + 1))}px` }}></div> */}
             <div aria-hidden="true"></div>
         </div>
     );

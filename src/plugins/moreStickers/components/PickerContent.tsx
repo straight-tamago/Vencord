@@ -16,13 +16,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import { React } from "@webpack/common";
+import { React, useEffect } from "@webpack/common";
+import * as DataStore from "@api/DataStore";
 
 import { Sticker, StickerPack } from "../types";
 import { sendSticker } from "../upload";
 import { RecentlyUsedIcon } from "./icons";
 import { addRecentSticker, getRecentStickers, RECENT_STICKERS_ID, RECENT_STICKERS_TITLE } from "./recent";
-import { clPicker, FFmpegStateContext } from "../utils";
+import { clPicker, FFmpegStateContext, localization, cachedRegion } from "../utils";
+import { TextInput } from "@webpack/common";
+import { title } from "process";
 
 export interface PickerContent {
     stickerPacks: StickerPack[];
@@ -69,11 +72,35 @@ function PickerContentRowGrid({
     onSend = () => { },
     isHovered = false
 }: PickerContentRowGrid) {
+    const [overlayText, setOverlayText] = React.useState<string>("");
+
+    useEffect(() => {
+        const loadState = async () => {
+            try {
+                const savedText = await DataStore.get(sticker.id + "_text");
+                setOverlayText(savedText || "");
+            } catch (error) {
+                console.error("Failed to load overlay text:", error);
+                setOverlayText(sticker.overlayText || "");
+            }
+        };
+        loadState();
+    }, []);
+
     if (FFmpegStateContext === undefined) {
         return <div>FFmpegStateContext is undefined</div>;
     }
 
     const ffmpegState = React.useContext(FFmpegStateContext);
+
+    const handleTextChange = async (value: string) => {
+        setOverlayText(value);
+        if (value.trim() === "") {
+            await DataStore.del(sticker.id + "_text");
+        } else {
+            await DataStore.set(sticker.id + "_text", value);
+        }
+    };
 
     return (
         <div
@@ -91,7 +118,10 @@ function PickerContentRowGrid({
             }}
         >
             <div
-                className={clPicker("content-row-grid-sticker")}
+                className={clPicker(sticker.overlayTextImageUrl ? "content-row-grid-sticker" : "content-row-grid-sticker-notext")}
+                style={{
+                    transform: "scale(0.98)",
+                }}
             >
                 <span className={clPicker("content-row-grid-hidden-visually")}>{sticker.title}</span>
                 <div aria-hidden="true">
@@ -103,8 +133,8 @@ function PickerContentRowGrid({
                     }></div>
                     <div className={clPicker("content-row-grid-sticker-node")}>
                         <div className={clPicker("content-row-grid-asset-wrapper")} style={{
-                            height: "96px",
-                            width: "96px"
+                            width: "100%",
+                            height: "100%",
                         }}>
                             <img
                                 alt={sticker.title}
@@ -115,13 +145,38 @@ function PickerContentRowGrid({
                                 className={clPicker("content-row-grid-img")}
                                 loading="lazy"
                             />
+                            {sticker.overlayTextImageUrl && (
+                                <img
+                                    alt={sticker.title}
+                                    src={sticker.overlayTextImageUrl}
+                                    draggable="false"
+                                    datatype="sticker"
+                                    data-id={sticker.id}
+                                    className={clPicker("content-row-grid-img")}
+                                    loading="lazy"
+                                />
+                            )}
                         </div>
                     </div>
                 </div>
+                {sticker.overlayTextImageUrl && (
+                    <TextInput
+                        style={{ height: "30px" }}
+                        placeholder={localization("Not set")}
+                        autoFocus={false}
+                        value={overlayText}
+                        onChange={(value: string) => handleTextChange(value)}
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                )}
             </div>
         </div>
     );
 }
+
+
+
+
 
 function PickerContentRow({ rowIndex, grid1, grid2, grid3, channelId }: PickerContentRow) {
     return (
@@ -167,7 +222,7 @@ export function PickerContentHeader({
             beforeScroll();
 
             headerElem.current.scrollIntoView({
-                behavior: "smooth",
+                // behavior: "smooth",
                 block: "start",
             });
 
@@ -244,6 +299,8 @@ export function PickerContent({ stickerPacks, selectedStickerPackId, setSelected
     async function fetchRecentStickers() {
         const recentStickers = await getRecentStickers();
         setRecentStickers(recentStickers);
+        setCurrentSticker(recentStickers[0]);
+        setCurrentStickerPack(await DataStore.get(recentStickers[0].stickerPackId));
     }
 
     React.useEffect(() => {
@@ -303,13 +360,15 @@ export function PickerContent({ stickerPacks, selectedStickerPackId, setSelected
         <div className={clPicker("content-list-wrapper")}>
             <div className={clPicker("content-wrapper")}>
                 <div className={clPicker("content-scroller")} ref={scrollerRef}>
-                    <div className={clPicker("content-list-items")} role="none presentation">
+                    <div className={clPicker("content-list-items")} role="none presentation" style={{
+                        height: `${stickerPacksElemRef.current?.clientHeight ?? 0}px`
+                    }}>
                         <div ref={stickerPacksElemRef}>
                             <PickerContentHeader
                                 image={
                                     <RecentlyUsedIcon width={16} height={16} color="currentColor" />
                                 }
-                                title={RECENT_STICKERS_TITLE}
+                                title={localization(RECENT_STICKERS_TITLE)}
                                 isSelected={RECENT_STICKERS_ID === selectedStickerPackId}
                                 beforeScroll={() => {
                                     scrollerRef.current?.scrollTo({
@@ -346,9 +405,6 @@ export function PickerContent({ stickerPacks, selectedStickerPackId, setSelected
                             }
                         </div>
                     </div>
-                    <div style={{
-                        height: `${stickerPacksElemRef.current?.clientHeight ?? 0}px`
-                    }}></div>
                 </div>
                 <div
                     className={clPicker("content-inspector")}
@@ -379,8 +435,19 @@ export function PickerContent({ stickerPacks, selectedStickerPackId, setSelected
                     <div className={clPicker("content-inspector-text-wrapper")}>
                         <div className={clPicker("content-inspector-title-primary")} data-text-variant="text-md/semibold">{currentSticker?.title ?? ""}</div>
                         <div className={clPicker("content-inspector-title-secondary")} data-text-variant="text-md/semibold">
-                            {currentStickerPack?.title ? "from " : ""}
-                            <strong>{currentStickerPack?.title ?? ""}</strong>
+                            {
+                                cachedRegion === "ja" ? (
+                                    <>
+                                        <strong>{currentStickerPack?.title ?? ""}</strong>
+                                        {currentStickerPack?.title ? localization("from ") : ""}
+                                    </>
+                                ) : (
+                                    <>
+                                        {currentStickerPack?.title ? localization("from ") : ""}
+                                        <strong>{currentStickerPack?.title ?? ""}</strong>
+                                    </>
+                                )
+                            }
                         </div>
                     </div>
                     <div className={clPicker("content-inspector-graphic-secondary")} aria-hidden="true">

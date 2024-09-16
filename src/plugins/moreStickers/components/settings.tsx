@@ -24,7 +24,7 @@ import { convert as convertLineSP, getIdFromUrl as getLineStickerPackIdFromUrl, 
 import { convert as convertLineEP, getIdFromUrl as getLineEmojiPackIdFromUrl, getStickerPackById as getLineEmojiPackById, parseHtml as getLineEPFromHtml, isLineEmojiPackHtml } from "../lineEmojis";
 import { deleteStickerPack, getStickerPackMetas, saveStickerPack } from "../stickers";
 import { StickerPack, StickerPackMeta } from "../types";
-import { cl, clPicker } from "../utils";
+import { cl, clPicker, localization } from "../utils";
 
 enum SettingsTabsKey {
     ADD_STICKER_PACK_URL = "Add from URL",
@@ -120,7 +120,7 @@ export const Settings = () => {
                 {
                     Object.values(SettingsTabsKey).map(k => (
                         <TabBar.Item key={k} id={k} className="tab-bar-item">
-                            {k}
+                            {localization(k)}
                         </TabBar.Item>
                     ))
                 }
@@ -128,11 +128,11 @@ export const Settings = () => {
 
             {tab === SettingsTabsKey.ADD_STICKER_PACK_URL &&
                 <div className="section">
-                    <Forms.FormTitle tag="h5">Add Sticker Pack from URL</Forms.FormTitle>
+                    <Forms.FormTitle tag="h5">{localization("Add Sticker Pack from URL")}</Forms.FormTitle>
                     <Forms.FormText>
                         <p>
-                            Currently LINE stickers supported only. <br />
-                            Telegram stickers support is planned, but due to the lack of a public API, it is most likely to be provided by sticker pack files instead of adding by URL.
+                            {localization("Currently LINE stickers supported only.")}<br />
+                            {localization("Telegram stickers support is planned, but due to the lack of a public API, it is most likely to be provided by sticker pack files instead of adding by URL.")}
                         </p>
                     </Forms.FormText>
                     <Flex flexDirection="row" style={{
@@ -157,7 +157,7 @@ export const Settings = () => {
 
                                     return "Invalid URL";
                                 }}
-                                placeholder="Sticker Pack URL"
+                                placeholder={localization("Sticker Pack URL")}
                             />
                         </span>
                         <Button
@@ -229,18 +229,18 @@ export const Settings = () => {
                                 }
 
                             }}
-                        >Insert</Button>
+                        >{localization("Insert")}</Button>
                     </Flex>
                 </div>
             }
             {tab === SettingsTabsKey.ADD_STICKER_PACK_HTML &&
                 <div className="section">
-                    <Forms.FormTitle tag="h5">Add Sticker Pack from HTML</Forms.FormTitle>
+                    <Forms.FormTitle tag="h5">{localization("Add Sticker Pack from HTML")}</Forms.FormTitle>
                     <Forms.FormText>
                         <p>
-                            When encountering errors while adding a sticker pack, you can try to add it using the HTML source code of the sticker pack page.<br />
-                            This applies to stickers which are region locked / OS locked / etc.<br />
-                            The region LINE recognized may vary from the region you are in due to the CORS proxy we're using.
+                        {localization("When encountering errors while adding a sticker pack, you can try to add it using the HTML source code of the sticker pack page.")}<br />
+                        {localization("This applies to stickers which are region locked / OS locked / etc.")}<br />
+                        {localization("The region LINE recognized may vary from the region you are in due to the CORS proxy we're using.")}
                         </p>
                     </Forms.FormText>
                     <Flex flexDirection="row" style={{
@@ -253,7 +253,7 @@ export const Settings = () => {
                             <TextArea
                                 value={addStickerHtml}
                                 onChange={setAddStickerHtml}
-                                placeholder="Paste HTML here"
+                                placeholder={localization("Paste HTML here")}
                                 rows={1}
                             />
                         </span>
@@ -306,14 +306,14 @@ export const Settings = () => {
                                     });
                                 }
                             }}
-                        >Insert from HTML</Button>
+                        >{localization("Insert from HTML")}</Button>
                     </Flex>
                 </div>
             }
             {
                 tab === SettingsTabsKey.ADD_STICKER_PACK_FILE &&
                 <div className="section">
-                    <Forms.FormTitle tag="h5">Add Sticker Pack from File</Forms.FormTitle>
+                    <Forms.FormTitle tag="h5">{localization("Add Sticker Pack from File")}</Forms.FormTitle>
 
                     <Button
                         size={Button.Sizes.SMALL}
@@ -362,7 +362,7 @@ export const Settings = () => {
                             input.click();
                         }}
                     >
-                        Open Sticker Pack File
+                    {localization("Open Sticker Pack File")}
                     </Button>
                 </div>
             }
@@ -370,7 +370,7 @@ export const Settings = () => {
                 marginTop: "8px",
                 marginBottom: "8px"
             }} />
-            <Forms.FormTitle tag="h5">Stickers Management</Forms.FormTitle>
+            <Forms.FormTitle tag="h5">{localization("Stickers Management")}</Forms.FormTitle>
 
             <div className="section">
                 <div style={{

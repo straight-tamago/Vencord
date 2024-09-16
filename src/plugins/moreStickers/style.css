@@ -97,11 +97,12 @@
     box-sizing: border-box;
     min-height: 0;
     flex: 1 1 auto;
+    /* ref https://hachima25.hatenablog.com/entry/morestickers-vencord-plugin */
 }
 
 .vc-more-stickers-category-scroller> :first-child {
     inset: 8px;
-    contain: layout;
+    /* contain: layout; */
     position: absolute;
 }
 
@@ -112,6 +113,9 @@
     min-width: 1px;
     flex: 0 0 auto;
     height: 0;
+}
+.vc-more-stickers-category-scroller> :first-child> :last-child {
+    padding-bottom: 40px;
 }
 
 .vc-more-stickers-category-scroller,
@@ -210,6 +214,7 @@
     contain: layout;
     position: absolute;
     inset: 0 0 0 8px;
+    padding-right: 15px;
 }
 
 .vc-more-stickers-picker-content-header-wrapper {
@@ -282,19 +287,28 @@
 }
 
 .vc-more-stickers-picker-content-row {
-    column-gap: 67px;
-    grid-template-columns: repeat(auto-fill, 96px);
-    height: 96px;
+    /* column-gap: 67px; */
+    grid-template-columns: repeat(auto-fill, calc(100% / 3));
+    /* height:160px; */
     position: relative;
     display: grid;
-    margin-bottom: 12px;
+    /* margin-bottom: 12px; */
     overflow: hidden;
 }
 
+.vc-more-stickers-picker-content-row-grid-sticker-notext {
+    width: 100%;
+    height: 150px;
+    /* padding: 2px; */
+    cursor: pointer;
+    border-radius: 4px;
+    position: relative;
+}
+
 .vc-more-stickers-picker-content-row-grid-sticker {
-    width: 96px;
-    height: 96px;
-    padding: 2px;
+    width: 100%;
+    height: 180px;
+    /* padding: 2px; */
     cursor: pointer;
     border-radius: 4px;
     position: relative;
@@ -311,7 +325,7 @@
 }
 
 .vc-more-stickers-picker-content-row-grid-inspected-indicator {
-    height: 100%;
+    height: 150px;
     width: 100%;
     position: absolute;
     left: 0;
@@ -328,6 +342,7 @@
 }
 
 .vc-more-stickers-picker-content-row-grid-sticker-node {
+    height: 150px;
     transition: opacity 0.25s;
 }
 
@@ -414,17 +429,22 @@
     position: fixed;
     transform: translateY(-100%);
     background-color: var(--background-tertiary);
-    padding: 8px;
-    padding-right: 4px;
+    /* padding: 8px; */
+    /* padding-right: 4px; */
     border-bottom-left-radius: 5px;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .vc-more-stickers-picker-settings-cog {
     cursor: pointer;
-    border-radius: 2em;
+    /* border-radius: 2em; */
     background-color: var(--background-primary);
-    padding: 8px;
-    transform: translate(-5%, 10%);
+    /* padding: 8px; */
+    /* transform: translate(-5%, 10%); */
     transition: all 0.15s ease-out;
 }
 

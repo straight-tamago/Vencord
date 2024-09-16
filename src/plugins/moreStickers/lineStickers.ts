@@ -14,10 +14,10 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 import { LineSticker, LineStickerPack, Sticker, StickerPack } from "./types";
-import { corsFetch } from "./utils";
+import { corsFetch, cachedRegion } from "./utils";
 
 export interface StickerCategory {
     title: string;
@@ -70,26 +70,29 @@ function toStickerId(stickerId: string, lineStickerPackId: string): string {
 }
 
 /**
-  * Convert LineSticker to Sticker
-  *
-  * @param {LineSticker} s The LineSticker to convert.
-  * @return {Sticker} The sticker.
-  */
+ * Convert LineSticker to Sticker
+ *
+ * @param {LineSticker} s The LineSticker to convert.
+ * @return {Sticker} The sticker.
+ */
 export function convertSticker(s: LineSticker): Sticker {
     return {
         id: toStickerId(s.id, s.stickerPackId),
         image: s.staticUrl,
+        overlayTextImageUrl: s.customOverlayUrl ?? undefined,
+        animationImage: s.animationUrl && s.animationUrl.trim() !== '' ? s.animationUrl : undefined,
+        popupImage: s.popupUrl && s.popupUrl.trim() !== '' ? s.popupUrl : undefined,
         title: s.id,
         stickerPackId: toStickerPackId(s.stickerPackId)
     };
 }
 
 /**
-  * Convert LineStickerPack to StickerPack
-  *
-  * @param {LineStickerPack} sp The LineStickerPack to convert.
-  * @return {StickerPack} The sticker pack.
-  */
+ * Convert LineStickerPack to StickerPack
+ *
+ * @param {LineStickerPack} sp The LineStickerPack to convert.
+ * @return {StickerPack} The sticker pack.
+ */
 export function convert(sp: LineStickerPack): StickerPack {
     return {
         id: toStickerPackId(sp.id),
@@ -101,21 +104,28 @@ export function convert(sp: LineStickerPack): StickerPack {
 }
 
 /**
-  * Get stickers from given HTML
-  *
-  * @param {string} html The HTML.
-  * @return {Promise<LineStickerPack>} The sticker pack.
-  */
+ * Get stickers from given HTML
+ *
+ * @param {string} html The HTML.
+ * @return {Promise<LineStickerPack>} The sticker pack.
+ */
 export function parseHtml(html: string): LineStickerPack {
     const doc = new DOMParser().parseFromString(html, "text/html");
     const mainImage = JSON.parse((doc.querySelector("[ref=mainImage]") as HTMLElement)?.dataset?.preview ?? "null") as LineSticker;
     const { id } = mainImage;
 
-    const stickers =
-        [...doc.querySelectorAll('[data-test="sticker-item"]')]
-            .map(x => JSON.parse((x as HTMLElement).dataset.preview ?? "null"))
-            .filter(x => x !== null)
-            .map(x => ({ ...x, stickerPackId: id })) as LineSticker[];
+    function extractStickers(selector: string, doc: Document, id: string): LineSticker[] {
+        return [...doc.querySelectorAll(selector)]
+            .map((x) => JSON.parse((x as HTMLElement).dataset.preview ?? "null"))
+            .filter((x) => x !== null)
+            .map((x) => ({ ...x, stickerPackId: id })) as LineSticker[];
+    }
+    let stickers: LineSticker[] = [];
+    if (doc.querySelector('[data-test="sticker-item"]')) {
+        stickers = extractStickers('[data-test="sticker-item"]', doc, id);
+    } else {
+        stickers = extractStickers('[data-custom-api]', doc, id);
+    }
 
     const stickerPack = {
         title: doc.querySelector("[data-test=sticker-name-title]")?.textContent ?? "null",
@@ -132,17 +142,17 @@ export function parseHtml(html: string): LineStickerPack {
 }
 
 export function isLineStickerPackHtml(html: string): boolean {
-    return html.includes("data-test=\"sticker-name-title\"");
+    return html.includes('data-test="sticker-name-title"');
 }
 
 /**
-  * Get stickers from LINE
-  *
-  * @param {string} id The id of the sticker pack.
-  * @return {Promise<LineStickerPack>} The sticker pack.
-  */
-export async function getStickerPackById(id: string, region = "en"): Promise<LineStickerPack> {
-    const res = await corsFetch(`https://store.line.me/stickershop/product/${id}/${region}`);
+ * Get stickers from LINE
+ *
+ * @param {string} id The id of the sticker pack.
+ * @return {Promise<LineStickerPack>} The sticker pack.
+ */
+export async function getStickerPackById(id: string): Promise<LineStickerPack> {
+    const res = await corsFetch(`https://store.line.me/stickershop/product/${id}/${cachedRegion}`);
     const html = await res.text();
 
     return parseHtml(html);

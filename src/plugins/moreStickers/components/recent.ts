@@ -19,13 +19,13 @@
 import * as DataStore from "@api/DataStore";
 
 import { Sticker } from "../types";
-import { Mutex } from "../utils";
+import { Mutex, localization } from "../utils";
 
 const mutex = new Mutex();
 
 // The ID of recent sticker and recent sticker pack
 export const RECENT_STICKERS_ID = "recent";
-export const RECENT_STICKERS_TITLE = "Recently Used";
+export const RECENT_STICKERS_TITLE = localization("Recently Used");
 
 const KEY = "Vencord-MoreStickers-RecentStickers";
 

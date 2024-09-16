@@ -25,6 +25,7 @@ export interface LineSticker {
     popupUrl: string;
     soundUrl: string;
     staticUrl: string;
+    customOverlayUrl?: string;
     type: string;
     stickerPackId: LineStickerPack["id"];
 }
@@ -69,6 +70,10 @@ export interface Sticker {
     stickerPackId: StickerPackMeta["id"];
     filename?: string;
     isAnimated?: boolean;
+    overlayTextImageUrl?: string;
+    overlayText?: string;
+    animationImage?: string;
+    popupImage?: string;
 }
 
 export interface StickerPackMeta {
